@@ -1,0 +1,5 @@
+# Archivos sensibles
+backend/token.json
+*.env
+.env.*
+credentials.json
