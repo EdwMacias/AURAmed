@@ -15,7 +15,8 @@ services:
     environment:
       - OLLAMA_HOST=0.0.0.0:11434
     restart: unless-stopped
-
+    networks:
+      - app-network
   api:
     build:
       context: ./ia-models         # <- apunta al directorio con tu Dockerfile
@@ -51,7 +52,7 @@ services:
     ports:
       - "5173:5173"
     volumes:
-      - ./frontend:/app
+      - ./frontend/iatools:/app
       - /app/node_modules
     environment:
       - NODE_ENV=development
@@ -63,3 +64,7 @@ services:
 
 volumes:
   ollama_data:
+
+networks:
+  app-network:
+    driver: bridge

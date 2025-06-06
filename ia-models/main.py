@@ -8,18 +8,19 @@ import requests
 import os
 
 app = FastAPI()
-backend_api_url = os.getenv("BACKEND_API_URL", "http://localhost:3000/api/")
-create_event_url = os.getenv("BACKEND_CREATE_EVENT_URL", "http://localhost:3000/api/createEvent")
+backend_api_url = "http://localhost:3000/api/"
+create_event_url = "http://localhost:3000/api/createEvent"
+allow_origins =  "http://localhost:5173"
 app.add_middleware(
     CORSMiddleware,
-    allow_origins = os.getenv("FRONTEND_URL", "http://localhost:5173")
+    allow_origins = ["http://localhost:5173", "http://172.28.244.160:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 class GenerateInput(BaseModel):
     prompt: str
-    model: str = os.getenv("MODEL_NAME", "deepseek-r1:latest")  # Nombre exacto del modelo que tienes
+    model: str = "deepseek-r1:latest" # Nombre exacto del modelo que tienes
     stream: bool = False
     dates: list = []
 
