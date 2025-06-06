@@ -4,22 +4,22 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from datetime import datetime, timedelta, date
 from fastapi.middleware.cors import CORSMiddleware
-
 import requests
 import os
 
 app = FastAPI()
-
+backend_api_url = os.getenv("BACKEND_API_URL", "http://localhost:3000/api/")
+create_event_url = os.getenv("BACKEND_CREATE_EVENT_URL", "http://localhost:3000/api/createEvent")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://172.28.244.160:5173"], # url local debido a uso de docker y compatiblidad con WSL
+    allow_origins = os.getenv("FRONTEND_URL", "http://localhost:5173")
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 class GenerateInput(BaseModel):
     prompt: str
-    model: str = "deepseek-r1:7b"  # Nombre exacto del modelo que tienes
+    model: str = os.getenv("MODEL_NAME", "deepseek-r1:latest")  # Nombre exacto del modelo que tienes
     stream: bool = False
     dates: list = []
 
@@ -34,7 +34,7 @@ def parse_date(d: str) -> date:
 
 def get_available_dates():
     try:
-        response = requests.get("http://172.28.244.160:3000/api/", timeout=10) # url local debido a uso de docker y compatiblidad con WSL
+        response = requests.get(backend_api_url, timeout=10)
         response.raise_for_status()
         eventos = response.json().get("response", [])
 
@@ -69,6 +69,29 @@ def extraer_json_de_texto(texto: str) -> dict:
         pass
     return {}
 
+def accion_solicitar_datos(parsed):
+    # parsed["faltante"] puede ser lista o string
+    faltantes = parsed.get("faltante", [])
+    if isinstance(faltantes, str):
+        faltantes = [faltantes]
+    # Mensaje amigable (podrías mejorarlo aún más)
+    campo_map = {
+        "nombre": "nombre completo",
+        "cedula": "número de cédula",
+        "fecha": "fecha de la cita"
+    }
+    faltan = [campo_map.get(f, f) for f in faltantes]
+    if len(faltan) == 1:
+        mensaje = f"Por favor, dime tu {faltan[0]} para poder agendar la cita."
+    else:
+        campos = ", ".join(faltan[:-1]) + " y " + faltan[-1]
+        mensaje = f"Por favor, dime tu {campos} para poder agendar la cita."
+    return {
+        "accion": "solicitar-datos",
+        "faltante": faltantes,
+        "mensaje": mensaje
+    }
+
 def accion_ver_fechas():
     fechas = get_available_dates()
     return {
@@ -91,7 +114,7 @@ def accion_confirmar_cita(evento: dict):
 
     try:
         response = requests.post(
-            "http://172.28.244.160:3000/api/createEvent",  # Tu endpoint real
+            create_event_url,  # Tu endpoint real
             json=evento,
             timeout=10
         )
@@ -116,6 +139,8 @@ tabla_acciones = {
     "ver-fechas": lambda parsed: accion_ver_fechas(),
     "apartar-cita": lambda parsed: accion_apartar_cita(),
     "confirmar-cita": lambda parsed: accion_confirmar_cita(parsed.get("evento")),
+    "solicitar-datos": accion_solicitar_datos,   # <--- NUEVO
+
 }
 
 @app.get("/available-dates", response_model=AvailableDatesResponse)
@@ -128,17 +153,20 @@ def generar_texto(input: GenerateInput):
     ollama_url = f"{os.getenv('OLLAMA_URL', 'http://ollama:11434')}/api/generate"
 
     prompt_final = (
-        "Actúa como un asistente virtual para agendar citas médicas. Tu única salida debe ser en formato JSON válido. No expliques nada, no incluyas ningún texto fuera del JSON.\n"
-        "Ejemplos:\n"
-        "Usuario: quiero ver fechas disponibles\n"
-        'Respuesta: { "accion": "ver-fechas" }\n\n'
-        "Usuario: quiero agendar una cita\n"
-        'Respuesta: { "accion": "apartar-cita" }\n\n'
-        "Usuario: sí, confírmala para el lunes con el cardiólogo, a las 10am, correo juan@mail.com\n"
-        'Respuesta: { "accion": "confirmar-cita", "evento": { "summary": "Consulta con cardiólogo", "location": "Consultorio 3", "description": "Consulta médica", "start": { "dateTime": "2025-06-07T10:00:00", "timeZone": "America/Bogota" }, "end": { "dateTime": "2025-06-07T10:30:00", "timeZone": "America/Bogota" }, "attendees": [ { "email": "juan@mail.com" } ], "reminders": { "useDefault": true } } }\n\n'
-        f"Usuario: {input.prompt}"
-    )
-
+    "Eres un asistente para agendar citas médicas. "
+    "Responde exclusivamente en español y solo sobre agendamiento.\n\n"
+    "Reglas:\n"
+    "- Si el usuario quiere reservar una cita y proporciona nombre, cédula y fecha, responde SOLO con:\n"
+    '{ "accion": "apartar-cita", "nombre": "<NOMBRE>", "cedula": "<CEDULA>", "fecha": "<AAAA-MM-DD>" }\n'
+    "- Si falta uno o más datos, responde SOLO con:\n"
+    '{ "accion": "solicitar-datos", "faltante": ["nombre", "cedula", "fecha"] }\n'
+    "- Si pregunta por fechas disponibles, responde sólo con:\n"
+    '{ "accion": "ver-fechas" }\n'
+    "- Si confirma una cita y da todos los datos, responde SOLO con el JSON para confirmar cita (formato mostrado abajo).\n"
+    '{ "accion": "confirmar-cita", "evento": { "summary": \"...\", \"location\": \"...\", \"description\": \"...\", \"start\": {...}, \"end\": {...}, \"attendees\": [...], \"reminders\": {...} } }\n\n'
+    "No agregues explicaciones, ni texto adicional. No uses etiquetas <think> ni comentarios.\n\n"
+    f"Usuario: {input.prompt}"
+)
 
     try:
         response = requests.post(
