@@ -3,7 +3,7 @@ export async function activateSession(timeoutMs = 2000): Promise<Response> {
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const response = await fetch('http://http://localhost:8000/generate', {
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/generate`, {
       method: 'GET',
       signal: controller.signal,
     });

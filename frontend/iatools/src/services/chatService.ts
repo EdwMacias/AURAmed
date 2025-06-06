@@ -6,13 +6,11 @@ export interface ChatRequest {
 
 export interface ChatResponse {
   mensaje?: string;
-  respuesta?: {
-    mensaje?: string;
-  };
+  respuesta?: string | { mensaje?: string };
 }
 
 export async function sendPromptToModel(prompt: string): Promise<string> {
-  const res = await fetch("http://localhost:8000/generate", {
+  const res = await fetch(`${import.meta.env.VITE_API_URL}/generate`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -24,17 +22,21 @@ export async function sendPromptToModel(prompt: string): Promise<string> {
     }),
   });
 
-  console.log({res});
-
   if (!res.ok) {
     throw new Error("Error al conectar con el modelo IA");
   }
 
   const data: ChatResponse = await res.json();
-  console.log({data});
-  const text = data.mensaje ?? data.respuesta?.mensaje;
-  
-  if (!text) throw new Error("La respuesta del modelo está vacía o malformada");
+  const text =
+    typeof data.respuesta === "string"
+      ? data.respuesta
+      : typeof data.respuesta === "object" && data.respuesta?.mensaje
+      ? data.respuesta.mensaje
+      : data.mensaje;
+
+  if (!text) {
+    throw new Error("La respuesta del modelo está vacía o malformada");
+  }
   return extractAfterThinkTag(text);
 }
 

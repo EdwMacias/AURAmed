@@ -27,13 +27,15 @@ export default function LandingPage() {
       description: "Tu asistente está listo para ayudarte.",
     });
 
-    navigate("/text");
+    navigate("/AuraChat");
     setIsLoading(false);
   }, 1500);
 };
   return (
     <PageWrapper>
-     <div className="pointer-events-none bg-[#50bfff60] absolute inset-0 z-0 before:content-[''] before:absolute before:inset-0 before:bg-[url('https://img.freepik.com/free-vector/green-medical-patterned-background-vector_53876-169038.jpg')] before:bg-repeat opacity-60"></div>
+     <div className="pointer-events-none bg-[#50bfff60] absolute inset-0 z-0 before:content-[''] before:absolute before:inset-0 before:bg-[url('https://img.freepik.com/free-vector/green-medical-patterned-background-vector_53876-169038.jpg')] before:bg-repeat opacity-70">
+     <div className="absolute inset-0 bg-[#50bfff60]"></div>
+     </div>
 
   <Card className="relative z-10 shadow-xl">
         <CardHeader className="items-center text-center">

@@ -4,13 +4,13 @@ import { useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
-import { Send, ArrowLeft, Mic, StopCircle } from "lucide-react";
+import { Send, ArrowLeft, Mic, StopCircle, Image } from "lucide-react";
 import { sendPromptToModel } from "../services/chatService";
 import ReactMarkdown from "react-markdown";
 
 type Message = {
   sender: "client" | "Auramed";
-  type: "text" | "audio";
+  type: "text" | "audio" | "image";
   content: string;
 };
 
@@ -22,6 +22,7 @@ export default function AuraChatPage() {
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const handleSendMessage = async () => {
     if (!message.trim()) return;
@@ -104,6 +105,20 @@ export default function AuraChatPage() {
     setRecording(false);
   };
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const imageURL = URL.createObjectURL(file);
+
+    setConversation((prev) => [
+      ...prev,
+      { sender: "client", type: "image", content: imageURL },
+    ]);
+
+    e.target.value = "";
+  };
+
   return (
     <div className="flex flex-col h-screen w-screen">
       {/* Header */}
@@ -139,15 +154,24 @@ export default function AuraChatPage() {
                   msg.sender === "client"
                     ? msg.type === "text"
                       ? "bg-blue-500 text-white"
-                      : "bg-background text-gray-100"
+                      : msg.type === "audio"
+                      ? "bg-background text-gray-100"
+                      : "bg-blue-400 text-white"
                     : "bg-gray-100 text-gray-800"
                 }`}
                 style={{ whiteSpace: "pre-wrap" }}
               >
                 {msg.type === "text" ? (
                   <ReactMarkdown>{msg.content}</ReactMarkdown>
-                ) : (
+                ) : msg.type === "audio" ? (
                   <audio controls src={msg.content} />
+                ) : (
+                  <img
+                    src={msg.content}
+                    alt="Imagen subida"
+                    className="rounded-lg"
+                    style={{ maxWidth: "200px", maxHeight: "200px", objectFit: "contain" }}
+                  />
                 )}
               </div>
             </div>
@@ -165,6 +189,24 @@ export default function AuraChatPage() {
       {/* Footer */}
       <footer className="p-4 relative border-t bg-white p-footer">
         <div className="flex items-center space-x-2">
+          {/* Botón para subir/tomar foto */}
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            ref={fileInputRef}
+            onChange={handleImageUpload}
+          />
+          <Button
+            size="icon"
+            variant="outline"
+            className="rounded-full"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <Image className="h-5 w-5" />
+          </Button>
+
           <Input
             placeholder="Escribe tu mensaje..."
             value={message}
@@ -193,11 +235,7 @@ export default function AuraChatPage() {
             onClick={recording ? stopRecording : startRecording}
             variant={recording ? "destructive" : "default"}
           >
-            {recording ? (
-              <StopCircle className="h-5 w-5" />
-            ) : (
-              <Mic className="h-5 w-5" />
-            )}
+            {recording ? <StopCircle className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
           </Button>
         </div>
       </footer>

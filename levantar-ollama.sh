@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Script para levantar Ollama y correr modelo deepseek:r1-8b
+# Script para levantar Ollama y correr modelo deepseek:r1-latest
 
 # Paso 1: Verifica si docker está instalado
 if ! command -v docker &> /dev/null; then
@@ -37,10 +37,13 @@ sleep 3
 # Paso 5: Ejecuta el modelo deepseek-r1
 echo "Ejecutando modelo deepseek-r1:latest dentro del contenedor..."
 docker exec -it ollama ollama run deepseek-r1:latest
-docker exec -it ollama ollama run deepseek-r1:7b
 
+
+# Paso 6: levantar docker compose
+
+docker compose up -d
 
 #comandos para volver a montar la build de docker que se llama api en este caso
 
- docker compose build api
- docker compose up -d api
+#  docker compose build api
+#  docker compose up -d api
