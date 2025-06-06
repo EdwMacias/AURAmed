@@ -128,16 +128,17 @@ def generar_texto(input: GenerateInput):
     ollama_url = f"{os.getenv('OLLAMA_URL', 'http://ollama:11434')}/api/generate"
 
     prompt_final = (
-        "Actúa como un asistente virtual que agenda citas médicas. "
-        "Responde únicamente en formato JSON válido. No expliques nada a menos que necesites conseguir informacion del usuario. No uses etiquetas <think>.\n\n"
-        "Si el usuario desea agendar una cita, responde únicamente con:\n"
-        '{ "accion": "apartar-cita" }\n'
-        "Si el usuario desea ver fechas disponibles, responde únicamente con:\n"
-        '{ "accion": "ver-fechas" }\n'
-        "Si el usuario confirma una cita, preguntale primero por el especialista, el horario y el correo electronico, despues de eso responde únicamente con un JSON en el siguiente formato:\n"
-        '{ "accion": "confirmar-cita", "evento": { "summary": "...", "location": "...", "description": "...", "start": {...}, "end": {...}, "attendees": [...], "reminders": {...} } }\n\n'
+        "Actúa como un asistente virtual para agendar citas médicas. Tu única salida debe ser en formato JSON válido. No expliques nada, no incluyas ningún texto fuera del JSON.\n"
+        "Ejemplos:\n"
+        "Usuario: quiero ver fechas disponibles\n"
+        'Respuesta: { "accion": "ver-fechas" }\n\n'
+        "Usuario: quiero agendar una cita\n"
+        'Respuesta: { "accion": "apartar-cita" }\n\n'
+        "Usuario: sí, confírmala para el lunes con el cardiólogo, a las 10am, correo juan@mail.com\n"
+        'Respuesta: { "accion": "confirmar-cita", "evento": { "summary": "Consulta con cardiólogo", "location": "Consultorio 3", "description": "Consulta médica", "start": { "dateTime": "2025-06-07T10:00:00", "timeZone": "America/Bogota" }, "end": { "dateTime": "2025-06-07T10:30:00", "timeZone": "America/Bogota" }, "attendees": [ { "email": "juan@mail.com" } ], "reminders": { "useDefault": true } } }\n\n'
         f"Usuario: {input.prompt}"
     )
+
 
     try:
         response = requests.post(
