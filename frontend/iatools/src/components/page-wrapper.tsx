@@ -7,7 +7,7 @@ interface PageWrapperProps extends PropsWithChildren {
 
 export function PageWrapper({ children, className }: PageWrapperProps) {
   return (
-    <main className={cn("flex flex-col min-h-screen items-center justify-center p-4 sm:p-6 md:p-8 bg-background", className)}>
+    <main className={cn("flex flex-col min-h-screen items-center justify-center p-4 sm:p-6 md:p-8 ", className)}>
       <div className="w-full max-w-md">
         {children}
       </div>
