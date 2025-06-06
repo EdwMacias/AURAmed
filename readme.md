@@ -1,4 +1,4 @@
-markdown# AURAmed -asistente de agendamiento de Citas Médicas usando IA local
+# AURAmed -asistente de agendamiento de Citas Médicas usando IA local
 
 Una API inteligente construida con FastAPI, frontend con ReactJS y express.JS que integra modelos de lenguaje (LLM) para facilitar el agendamiento de citas médicas a través de conversaciones naturales en español.
 
