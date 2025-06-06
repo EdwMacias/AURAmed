@@ -3,3 +3,6 @@ backend/token.json
 *.env
 .env.*
 credentials.json
+ia-models/ia
+test.json
+ia-models/ia.json

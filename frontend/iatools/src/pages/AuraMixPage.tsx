@@ -140,7 +140,7 @@ export default function AuraChatPage() {
                     ? msg.type === "text"
                       ? "bg-blue-500 text-white"
                       : "bg-background text-gray-100"
-                    : "bg-gray-200 text-gray-800"
+                    : "bg-gray-100 text-gray-800"
                 }`}
                 style={{ whiteSpace: "pre-wrap" }}
               >

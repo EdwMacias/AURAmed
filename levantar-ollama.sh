@@ -37,3 +37,10 @@ sleep 3
 # Paso 5: Ejecuta el modelo deepseek-r1
 echo "Ejecutando modelo deepseek-r1:latest dentro del contenedor..."
 docker exec -it ollama ollama run deepseek-r1:latest
+docker exec -it ollama ollama run deepseek-r1:7b
+
+
+#comandos para volver a montar la build de docker que se llama api en este caso
+
+ docker compose build api
+ docker compose up -d api

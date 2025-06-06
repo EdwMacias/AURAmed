@@ -1,22 +1,30 @@
 import fs from 'fs/promises';
 import path from 'path';
 import process from 'process';
-import { authenticate } from '@google-cloud/local-auth';
 import { google } from 'googleapis';
+import { authenticate } from '@google-cloud/local-auth';
 
-const SCOPES = ['https://www.googleapis.com/auth/calendar'];
+import { GoogleSheetsService } from './GoogleSheetsService.js';
+import { configApplication } from '../config/configApplication.js';
+
+const SCOPES = [
+  'https://www.googleapis.com/auth/calendar',
+  'https://www.googleapis.com/auth/spreadsheets',
+  'https://www.googleapis.com/auth/drive',
+];
+
 const TOKEN_PATH = path.join(process.cwd(), 'token.json');
 const CREDENTIALS_PATH = path.join(process.cwd(), 'credentials.json');
 
 export class GoogleCalendarService {
   constructor() {
     this.auth = null;
+    this.googleSheetsService = new GoogleSheetsService();
   }
 
   async loadSavedCredentialsIfExist() {
     try {
-      const content = await fs.readFile(TOKEN_PATH);
-      const credentials = JSON.parse(content);
+      const credentials = JSON.parse(await fs.readFile(TOKEN_PATH));
       return google.auth.fromJSON(credentials);
     } catch {
       return null;
@@ -24,8 +32,7 @@ export class GoogleCalendarService {
   }
 
   async saveCredentials(client) {
-    const content = await fs.readFile(CREDENTIALS_PATH);
-    const keys = JSON.parse(content);
+    const keys = JSON.parse(await fs.readFile(CREDENTIALS_PATH));
     const key = keys.installed || keys.web;
     const payload = JSON.stringify({
       type: 'authorized_user',
@@ -45,64 +52,84 @@ export class GoogleCalendarService {
         scopes: SCOPES,
         keyfilePath: CREDENTIALS_PATH,
       });
-      if (client.credentials) {
-        await this.saveCredentials(client);
-      }
+      if (client.credentials) await this.saveCredentials(client);
     }
 
     this.auth = client;
-    console.log('✅ Autenticado con éxito');
+    // console.log('✅ Autenticado con éxito');
     return client;
   }
 
   async listEvents() {
-    const auth = await this.authorize();
-    const calendar = google.calendar({ version: 'v3', auth });
-
     try {
-      const res = await calendar.events.list({
+      const auth = await this.authorize();
+      const calendar = google.calendar({
+        version: configApplication.versionGoogleCalendar,
+        auth,
+      });
+
+      const response = await calendar.events.list({
         calendarId: 'primary',
         timeMin: new Date().toISOString(),
-        maxResults: 10,
         singleEvents: true,
         orderBy: 'startTime',
       });
 
-      const events = res.data.items || [];
-      if (events.length === 0) {
-        console.log('No se encontraron eventos próximos.');
-      } else {
-        console.log('Próximos 10 eventos:');
-        return events.map(event => {
-          const start = event.start.dateTime || event.start.date;
-          console.log(`${start} - ${event.summary}`);
-          return {
-            // id: event.id,
-            summary: event.summary,
-            description: event.description,
-            start: start,
-            end: event.end.dateTime || event.end.date,
-          };
-        });
-      }
+      const events = response.data.items || [];
+      return events.map(({ summary, description, start, end }) => ({
+        summary,
+        description,
+        start: start.dateTime || start.date,
+        end: end.dateTime || end.date,
+      }));
     } catch (error) {
-      console.error('❌ Error al listar eventos:', error);
+      // console.error('❌ Error al listar eventos:', error);
+      return [];
     }
   }
 
   async createEvent(eventData) {
-    const auth = await this.authorize();
-    const calendar = google.calendar({ version: 'v3', auth });
-
     try {
-      const response = await calendar.events.insert({
+      const auth = await this.authorize();
+      const calendar = google.calendar({
+        version: configApplication.versionGoogleCalendar,
+        auth,
+      });
+
+      const { data, status } = await calendar.events.insert({
         calendarId: 'primary',
         resource: eventData,
       });
 
-      console.log('✅ Evento creado:', response.data.htmlLink);
+      if (status === 200) {
+        const sheetData = {
+          id: data.id,
+          summary: data.summary,
+          description: data.description,
+          location: data.location,
+          start: data.start.dateTime || data.start.date,
+          end: data.end.dateTime || data.end.date,
+        };
+
+        const registerGoogleSheet = await this.googleSheetsService.createRegister(sheetData);
+
+        return {
+          message: registerGoogleSheet,
+          status: true,
+        };
+      }
+
+      return {
+        message: 'No se pudo crear el evento en Google Sheets',
+        status: false,
+        responseCalendar: data,
+      };
     } catch (error) {
-      console.error('❌ Error al crear el evento:', error);
+      // console.error('❌ Error al crear el evento:', error);
+      return {
+        message: 'Error inesperado',
+        status: false,
+      };
     }
   }
 }

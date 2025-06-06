@@ -1,5 +1,4 @@
 import { useNavigate } from "react-router-dom";
-import { activateSession } from "../services/appointmentService";
 import { Button } from "../components/ui/button";
 import {
   Card,
@@ -19,33 +18,24 @@ export default function LandingPage() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
 
-  const activateModels = async () => {
-    setIsLoading(true);
+ const activateModels = async () => {
+  setIsLoading(true);
 
-    try {
-      const response = await activateSession();
-      console.log(response);
-      
-        toast({
-          title: "Disfruta de AURAmed",
-          description: "Tu asistente está listo para ayudarte.",
-        });
-        navigate("/text");
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Hubo un error.";
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  setTimeout(() => {
+    toast({
+      title: "Disfruta de AURAmed",
+      description: "Tu asistente está listo para ayudarte.",
+    });
+
+    navigate("/text");
+    setIsLoading(false);
+  }, 1500);
+};
   return (
     <PageWrapper>
-      <Card className="shadow-xl">
+     <div className="pointer-events-none bg-[#50bfff60] absolute inset-0 z-0 before:content-[''] before:absolute before:inset-0 before:bg-[url('https://img.freepik.com/free-vector/green-medical-patterned-background-vector_53876-169038.jpg')] before:bg-repeat opacity-60"></div>
+
+  <Card className="relative z-10 shadow-xl">
         <CardHeader className="items-center text-center">
           <Sparkles className="h-12 w-12 primary-color  mb-2" />
           <CardTitle className="text-3xl font-headline">

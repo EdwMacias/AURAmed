@@ -5,9 +5,9 @@ export interface ChatRequest {
 }
 
 export interface ChatResponse {
-  response?: string;
+  mensaje?: string;
   respuesta?: {
-    response?: string;
+    mensaje?: string;
   };
 }
 
@@ -32,7 +32,7 @@ export async function sendPromptToModel(prompt: string): Promise<string> {
 
   const data: ChatResponse = await res.json();
   console.log({data});
-  const text = data.response ?? data.respuesta?.response;
+  const text = data.mensaje ?? data.respuesta?.mensaje;
   
   if (!text) throw new Error("La respuesta del modelo está vacía o malformada");
   return extractAfterThinkTag(text);

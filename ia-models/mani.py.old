@@ -1,0 +1,114 @@
+# mani.py
+import base64
+import os
+import re
+import tempfile
+import requests
+from dotenv import load_dotenv
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from google.cloud import speech, texttospeech, vision
+
+# Cargar variables del entorno
+load_dotenv()
+api_key = os.getenv("API_VERTEX_KEY")
+assert api_key, "❌ Falta API_VERTEX_KEY en .env"
+print("✅ API Vertex Key cargada correctamente.")
+
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.get("/")
+def read_root():
+    return {"message": "AURAmed API - Vertex AI (API Key mode)"}
+
+@app.post("/prompt")
+def prompt_text_to_text(prompt: str = Form(...)):
+    try:
+        url = f"https://us-central1-aiplatform.googleapis.com/v1/projects/pro-icon-428214-a5/locations/us-central1/publishers/google/models/gemini-2.5-flash-preview-05-20:predict"
+
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+
+        body = {
+            "instances": [{"prompt": prompt}],
+            "parameters": {
+                "temperature": 0.2,
+                "maxOutputTokens": 256
+            }
+        }
+
+        response = requests.post(url, headers=headers, json=body)
+        if response.status_code != 200:
+            raise HTTPException(status_code=response.status_code, detail=response.json())
+
+        prediction = response.json()["predictions"][0]["content"]
+        return {"response": prediction}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"⚠️ Error al generar respuesta: {str(e)}")
+
+@app.post("/speech")
+async def speech_to_speech(audio: UploadFile = File(...)):
+    content = await audio.read()
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
+        tmp.write(content)
+        audio_path = tmp.name
+
+    speech_client = speech.SpeechClient()
+    with open(audio_path, "rb") as f:
+        audio_data = f.read()
+    stt_response = speech_client.recognize(
+        config=speech.RecognitionConfig(encoding="LINEAR16", language_code="es-ES"),
+        audio=speech.RecognitionAudio(content=audio_data),
+    )
+    transcript = stt_response.results[0].alternatives[0].transcript if stt_response.results else ""
+
+    # Llamar al endpoint /prompt internamente
+    try:
+        r = prompt_text_to_text(prompt=transcript)
+        reply_text = r["response"]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"❌ Error al generar texto desde voz: {str(e)}")
+
+    tts_client = texttospeech.TextToSpeechClient()
+    synthesis_input = texttospeech.SynthesisInput(text=reply_text)
+    voice = texttospeech.VoiceSelectionParams(language_code="es-ES", ssml_gender=texttospeech.SsmlVoiceGender.FEMALE)
+    audio_config = texttospeech.AudioConfig(audio_encoding=texttospeech.AudioEncoding.MP3)
+
+    tts_response = tts_client.synthesize_speech(
+        input=synthesis_input, voice=voice, audio_config=audio_config
+    )
+
+    audio_base64 = base64.b64encode(tts_response.audio_content).decode("utf-8")
+    return {
+        "transcript": transcript,
+        "reply_text": reply_text,
+        "audio_base64": audio_base64
+    }
+
+@app.post("/image")
+async def image_to_text(image: UploadFile = File(...)):
+    content = await image.read()
+
+    vision_client = vision.ImageAnnotatorClient()
+    img = vision.Image(content=content)
+    result = vision_client.text_detection(image=img)
+
+    texts = result.text_annotations
+    full_text = texts[0].description if texts else "Texto no detectado"
+
+    fechas = re.findall(r"\d{2}/\d{2}/\d{4}", full_text)
+    return {
+        "texto_detectado": full_text.strip(),
+        "fechas_detectadas": fechas
+    }

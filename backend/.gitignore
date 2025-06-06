@@ -4,3 +4,5 @@ credentials.json
 .env
 token.json
 backend/token.json
+credential-google-sheets.json
+credential.json
